@@ -1,0 +1,74 @@
+version: '3.8'
+
+# 定义通用配置
+x-neo4j-common: &neo4j-common
+  image: neo4j:latest
+  restart: always
+  environment:
+    NEO4J_AUTH: neo4j/5vTgvWRpreBgFbGNrh6bk1Yw18DvLKY0_d6RKpBju
+    NEO4J_apoc_export_file_enabled: true
+    NEO4J_apoc_import_file_enabled: true
+    NEO4J_apoc_import_file_use__neo4j__config: true
+    NEO4J_PLUGINS: '["apoc","graph-data-science"]'
+    NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
+
+services:
+  neo4j-1:
+    <<: *neo4j-common
+    volumes:
+      - ./data/neo4j-1/logs:/logs
+      - ./data/neo4j-1/config:/config
+      - ./data/neo4j-1/data:/data
+      - ./data/neo4j-1/plugins:/plugins
+      - ./data/neo4j-1/import:/import
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+
+  neo4j-2:
+    <<: *neo4j-common
+    volumes:
+      - ./data/neo4j-2/logs:/logs
+      - ./data/neo4j-2/config:/config
+      - ./data/neo4j-2/data:/data
+      - ./data/neo4j-2/plugins:/plugins
+      - ./data/neo4j-2/import:/import
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+
+  neo4j-3:
+    <<: *neo4j-common
+    volumes:
+      - ./data/neo4j-3/logs:/logs
+      - ./data/neo4j-3/config:/config
+      - ./data/neo4j-3/data:/data
+      - ./data/neo4j-3/plugins:/plugins
+      - ./data/neo4j-3/import:/import
+    ports:
+      - "7476:7474"
+      - "7689:7687"
+
+  neo4j-4:
+    <<: *neo4j-common
+    volumes:
+      - ./data/neo4j-4/logs:/logs
+      - ./data/neo4j-4/config:/config
+      - ./data/neo4j-4/data:/data
+      - ./data/neo4j-4/plugins:/plugins
+      - ./data/neo4j-4/import:/import
+    ports:
+      - "7477:7474"
+      - "7690:7687"
+
+  neo4j-5:
+    <<: *neo4j-common
+    volumes:
+      - ./data/neo4j-5/logs:/logs
+      - ./data/neo4j-5/config:/config
+      - ./data/neo4j-5/data:/data
+      - ./data/neo4j-5/plugins:/plugins
+      - ./data/neo4j-5/import:/import
+    ports:
+      - "7478:7474"
+      - "7691:7687"
