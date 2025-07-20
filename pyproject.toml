@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "eventtrag"
 version = "0.1.0"
@@ -37,4 +41,8 @@ dependencies = [
     "langchain-openai>=0.2.14",
     "rich>=13.9.4",
 ]
+
+[tool.setuptools.packages.find]
+include = ["eventrag*"]
+exclude = ["dockers*", "reproduce*"]
 
