@@ -126,9 +126,15 @@ def create_graph(
     query_param,
     global_config: dict,
 ):
+    # llm = ChatOpenAI(
+    #     model=global_config.get("model_name", "gpt-4o"),
+    #     temperature=global_config.get("temperature", 0.1)
+    # )
     llm = ChatOpenAI(
-        model=global_config.get("model_name", "gpt-4o"),
-        temperature=global_config.get("temperature", 0.1)
+        temperature=0.8,
+        model="Qwen-32B",
+        openai_api_key="EMPTY",
+        openai_api_base="http://10.10.202.242:2099/v1"
     )
     
     tool_executor = create_tool_executor(
@@ -191,8 +197,20 @@ def create_graph(
     
     workflow.set_entry_point("generate_keywords")
 
+    from langchain_core.runnables.graph_mermaid import MermaidDrawMethod
     graph = workflow.compile()
-    graph.get_graph().draw_mermaid_png(output_file_path="agent_graph.png")
+    try:
+        graph.get_graph().draw_mermaid_png(
+            output_file_path="agent_graph.png",
+            draw_method=MermaidDrawMethod.PYPPETEER
+        )
+    except Exception as e:
+        print(f"图表生成失败，但不影响主要功能: {e}")
+    # graph.get_graph().draw_mermaid_png(
+    #     output_file_path="agent_graph.png",
+    #     max_retries=5,  # 增加重试次数
+    #     retry_delay=2.0,  # 增加重试间隔
+    # )
     
     return graph
 
