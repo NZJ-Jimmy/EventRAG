@@ -9,7 +9,7 @@ import numpy as np
 # nest_asyncio.apply()
 #########
 
-WORKING_DIR = "./dickens"
+WORKING_DIR = "./surfilter"
 
 if not os.path.exists(WORKING_DIR):
     os.mkdir(WORKING_DIR)
@@ -43,11 +43,11 @@ async def qwen_embedding(texts, **kwargs):
 async def qwen3_complete(prompt, system_prompt=None, history_messages=[], **kwargs):
     """Qwen-3 API wrapper using OpenAI-compatible interface"""
     return await openai_complete_if_cache(
-        model="qwen3-32b",  # Qwen-3's chat model
+        model="qwen-plus",  # 使用 qwen-plus 模型，这是一个稳定可用的模型
         prompt=prompt,
         system_prompt=system_prompt,
         history_messages=history_messages,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1", # Qwen-3 API endpoint
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1", # Qwen API endpoint
         api_key=os.getenv("QWEN_API_KEY") or "sk-",  # Replace with your actual API key
         **kwargs
     )
@@ -61,15 +61,15 @@ rag = EventRAG(
     # llm_model_func=gpt_4o_complete  # Optionally, use a stronger model
 )
 
-with open("./dickens/book.txt", "r", encoding="utf-8") as f:
+with open("./surfilter/desc.txt", "r", encoding="utf-8") as f:
     rag.insert(f.read())
 
 # Perform naive search
 print(
-    rag.query("What are the top themes in this story?", param=QueryParam(mode="naive"))
+    rag.query("任子行是什么时候成立的？", param=QueryParam(mode="naive"))
 )
 
 # Perform multi-event reasoning
-print(
-    rag.query("What are the top themes in this story?", param=QueryParam(mode="agent"))
-)
+# print(
+#     rag.query("What are the top themes in this story?", param=QueryParam(mode="agent"))
+# )

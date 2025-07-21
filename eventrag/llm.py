@@ -1110,6 +1110,13 @@ class MultiModel:
 
 @log_openai_usage()
 async def _make_openai_request(client, model, messages, **kwargs):
+    # Add extra_body for Qwen API compatibility
+    if "extra_body" not in kwargs:
+        kwargs["extra_body"] = {}
+    
+    # Set enable_thinking to False for non-streaming calls (required by Qwen API)
+    kwargs["extra_body"]["enable_thinking"] = False
+    
     if "response_format" in kwargs:
         return await client.beta.chat.completions.parse(
             model=model, messages=messages, **kwargs

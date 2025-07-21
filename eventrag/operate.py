@@ -269,7 +269,7 @@ async def _merge_nodes_then_upsert(
     )
     await knowledge_graph_inst.upsert_node(
         entity_name,
-        node_data=node_data,
+        node_data, # no specific arg name, magic fixing
     )
     node_data["entity_name"] = entity_name
     return node_data
