@@ -26,4 +26,4 @@ openai_usage.csv
 .c/
 .np/
 *.pkl
-
+.conda
