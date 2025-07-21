@@ -6,7 +6,9 @@ from eventrag.tools import KnowledgeGraphTool, KnowledgeGraphEdgeTool, KeywordsQ
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolInvocation
 import logging
-import asyncio
+import subprocess
+import tempfile
+import os
 import json
 import re
 from .prompt import PROMPTS
@@ -202,18 +204,40 @@ def create_graph(
     from langchain_core.runnables.graph_mermaid import MermaidDrawMethod
     graph = workflow.compile()
     # graph.llm = llm
+    # ================ 自定义 Mermaid CLI 渲染函数 ======================
+    def render_with_mmdc(mermaid_code: str, output_path: str):
+        """使用 mmdc 将 Mermaid 代码渲染为 PNG"""
+        with tempfile.NamedTemporaryFile(suffix=".mmd", mode="w", delete=False) as tmp:
+            tmp.write(mermaid_code)
+            tmp_path = tmp.name
+
+        try:
+            subprocess.run([
+                "mmdc",
+                "-i", tmp_path,
+                "-o", output_path,
+                "-t", "default",
+                "-b", "white",
+                "--quiet"  # 减少命令行输出
+            ], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Mermaid CLI 渲染失败: {e}")
+        except FileNotFoundError:
+            print("未找到 mmdc 命令，请确保已安装 Mermaid CLI: npm install -g @mermaid-js/mermaid-cli")
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+
     try:
-        graph.get_graph().draw_mermaid_png(
-            output_file_path="agent_graph.png",
-            draw_method=MermaidDrawMethod.PYPPETEER
-        )
+        # 获取 Mermaid 代码
+        mermaid_code = graph.get_graph().draw_mermaid()
+        # 使用本地 mmdc 渲染
+        render_with_mmdc(mermaid_code, "agent_graph.png")
     except Exception as e:
         print(f"图表生成失败，但不影响主要功能: {e}")
-    # graph.get_graph().draw_mermaid_png(
-    #     output_file_path="agent_graph.png",
-    #     max_retries=5,  # 增加重试次数
-    #     retry_delay=2.0,  # 增加重试间隔
-    # )
+    # =================================================================
 
     return graph
 
