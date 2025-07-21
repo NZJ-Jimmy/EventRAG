@@ -10,12 +10,12 @@ from eventrag.llm import openai_complete_if_cache
 async def qwen3_complete(prompt, system_prompt=None, history_messages=[], **kwargs):
     """Qwen-3 API wrapper using OpenAI-compatible interface"""
     return await openai_complete_if_cache(
-        model="qwen-plus",  # 使用 qwen-plus 模型，这是一个稳定的模型
+        model="Qwen3-32B",  # 使用 qwen-plus 模型，这是一个稳定的模型
         prompt=prompt,
         system_prompt=system_prompt,
         history_messages=history_messages,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",  # Qwen API endpoint
-        api_key=os.getenv("QWEN_API_KEY") or "sk-",  # Replace with your actual API key
+        base_url="http://10.10.202.242:2099/v1",  # Qwen API endpoint
+        api_key=os.getenv("QWEN_API_KEY") or "EMPTY",  # Replace with your actual API key
         **kwargs
     )
 
@@ -99,11 +99,11 @@ async def run_all_tests():
     print("=" * 50)
     
     # 检查 API 密钥
-    api_key = os.getenv("QWEN_API_KEY")
-    if not api_key or api_key.startswith("sk-be98534"):
-        print("⚠️  警告: 请设置正确的 QWEN_API_KEY 环境变量")
-        print("   export QWEN_API_KEY='your_actual_api_key'")
-        print()
+    # api_key = os.getenv("QWEN_API_KEY")
+    # if not api_key or api_key.startswith("sk-be98534"):
+    #     print("⚠️  警告: 请设置正确的 QWEN_API_KEY 环境变量")
+    #     print("   export QWEN_API_KEY='your_actual_api_key'")
+    #     print()
     
     tests = [
         test_qwen3_basic,

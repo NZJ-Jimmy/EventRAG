@@ -6,6 +6,7 @@ from eventrag.tools import KnowledgeGraphTool, KnowledgeGraphEdgeTool, KeywordsQ
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolInvocation
 import logging
+import asyncio
 import json
 import re
 from .prompt import PROMPTS
@@ -131,12 +132,13 @@ def create_graph(
     #     temperature=global_config.get("temperature", 0.1)
     # )
     llm = ChatOpenAI(
-        temperature=0.8,
-        model="Qwen-32B",
-        openai_api_key="EMPTY",
-        openai_api_base="http://10.10.202.242:2099/v1"
+        model="Qwen3-32B",  # 模型名称与你测试成功的名称一致
+        openai_api_base="http://10.10.202.242:2099/v1",
+        openai_api_key="EMPTY",  # 使用环境变量
+        temperature=0.2,
+        max_tokens=2048
     )
-    
+
     tool_executor = create_tool_executor(
         knowledge_graph_inst,
         entities_vdb,
@@ -153,15 +155,15 @@ def create_graph(
     workflow.add_node("analyze", create_result_analyzer(llm))
     workflow.add_node("generate_answer", create_final_answer_generator(llm))
     workflow.add_node("reflect", create_reflection_analyzer(llm))
-    
+
     # Event analysis
     workflow.add_node("event_query", create_event_query_executor(tool_executor))
     workflow.add_node("event_summarize", create_event_summarizer(llm))
     workflow.add_node("aggregate_events", create_event_aggregator(llm))
-    
+
     # Add event reflection node
     workflow.add_node("event_reflect", create_event_reflection_analyzer(llm))
-    
+
     # setup edges
     workflow.add_edge(START, "generate_keywords")
     workflow.add_edge("generate_keywords", "query")
@@ -177,7 +179,7 @@ def create_graph(
             "generate_answer": "generate_answer"
         }
     )
-    
+
     # Event analysis
     workflow.add_edge("generate_keywords", "event_query")
     workflow.add_edge("event_query", "event_summarize")
@@ -192,13 +194,14 @@ def create_graph(
             "generate_answer": "generate_answer"
         }
     )
-    
+
     workflow.add_edge("generate_answer", END)
-    
+
     workflow.set_entry_point("generate_keywords")
 
     from langchain_core.runnables.graph_mermaid import MermaidDrawMethod
     graph = workflow.compile()
+    # graph.llm = llm
     try:
         graph.get_graph().draw_mermaid_png(
             output_file_path="agent_graph.png",
@@ -211,7 +214,7 @@ def create_graph(
     #     max_retries=5,  # 增加重试次数
     #     retry_delay=2.0,  # 增加重试间隔
     # )
-    
+
     return graph
 
 async def run_graph(
@@ -242,9 +245,15 @@ async def run_graph(
         needs_more_info=True,
         next_keywords=[]
     )
-    
+    print("Graph nodes:", graph.nodes)  # 检查节点是否完整
+    print("Graph edges:", graph.get_graph().edges)  # 检查边是否正确连接
+
+    # 临时测试 LLM 是否响应
+    # print(graph.llm)
+    # test_response = await graph.llm.ainvoke([HumanMessage(content="请说'pong'")])
+    # print("LLM 测试响应:", test_response.content)
     # run the graph
-    result = await graph.ainvoke(initial_state)
+    result = await graph.ainvoke(initial_state, debug=True)
     return result["final_answer"]
 
 
