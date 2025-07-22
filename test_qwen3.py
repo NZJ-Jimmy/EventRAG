@@ -5,17 +5,20 @@
 import os
 import asyncio
 from eventrag.llm import openai_complete_if_cache
+from dotenv import load_dotenv
+# 加载环境变量
+load_dotenv()
 
 # Qwen-3 API configuration
 async def qwen3_complete(prompt, system_prompt=None, history_messages=[], **kwargs):
     """Qwen-3 API wrapper using OpenAI-compatible interface"""
     return await openai_complete_if_cache(
-        model="qwen-plus",  # 使用 qwen-plus 模型，这是一个稳定的模型
+        model="Qwen3-32B",
         prompt=prompt,
         system_prompt=system_prompt,
         history_messages=history_messages,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",  # Qwen API endpoint
-        api_key=os.getenv("QWEN_API_KEY") or "sk-",  # Replace with your actual API key
+        # base_url="http://10.10.202.242:2099/v1",  # Qwen API endpoint
+        # api_key=os.getenv("QWEN_API_KEY") or "sk-",  # Replace with your actual API key
         **kwargs
     )
 

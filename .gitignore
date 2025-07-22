@@ -27,3 +27,4 @@ openai_usage.csv
 .np/
 *.pkl
 .conda
+*.lock

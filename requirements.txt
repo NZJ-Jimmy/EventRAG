@@ -6,7 +6,7 @@ graspologic>=3.4.1
 hnswlib>=0.8.0
 langchain-anthropic>=0.3.1
 langchain>=0.3.13
-langgraph>=0.2.60
+langgraph==0.2.60
 langsmith>=0.2.6
 nano-vectordb>=0.0.4.3
 neo4j>=5.27.0
