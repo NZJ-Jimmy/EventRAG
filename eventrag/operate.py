@@ -354,7 +354,7 @@ async def _merge_edges_then_upsert(
         if not (await knowledge_graph_inst.has_node(need_insert_id)):
             await knowledge_graph_inst.upsert_node(
                 need_insert_id,
-                node_data={
+                {
                     "source_id": source_id,
                     "description": description,
                     "entity_type": '"UNKNOWN"',
@@ -368,7 +368,7 @@ async def _merge_edges_then_upsert(
     await knowledge_graph_inst.upsert_edge(
         merged_src_id,
         merged_tgt_id,
-        edge_data=dict(
+        dict(
             weight=weight,
             description=description,
             keywords=keywords,
