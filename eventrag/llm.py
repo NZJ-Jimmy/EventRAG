@@ -796,29 +796,16 @@ async def fetch_data(url, headers, data):
 
 
 async def jina_embedding(
-    texts: list[str],
-    dimensions: int = 1024,
-    late_chunking: bool = False,
-    base_url: str = None,
-    api_key: str = None,
-) -> np.ndarray:
-    if api_key:
-        os.environ["JINA_API_KEY"] = api_key
-    url = "https://api.jina.ai/v1/embeddings" if not base_url else base_url
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.environ['JINA_API_KEY']}",
-    }
-    data = {
-        "model": "jina-embeddings-v3",
-        "normalized": True,
-        "embedding_type": "float",
-        "dimensions": f"{dimensions}",
-        "late_chunking": late_chunking,
-        "input": texts,
-    }
-    data_list = await fetch_data(url, headers, data)
-    return np.array([dp["embedding"] for dp in data_list])
+    texts,
+    **kwargs
+):
+    return await openai_embedding(
+        texts=texts,
+        base_url="http://10.10.202.242:2097/v1",  # automatically use the base URL from environment variables
+        # api_key="sk-1",  # automatically use the API key from environment variables
+        model="bce-embedding-base_v1",  # Qwen's text embedding model
+        dimensions=768,  # Specify dimensions for Qwen embedding
+    )
 
 
 @wrap_embedding_func_with_attrs(embedding_dim=2048, max_token_size=512)
@@ -1113,9 +1100,14 @@ async def _make_openai_request(client, model, messages, **kwargs):
     # Add extra_body for Qwen API compatibility
     if "extra_body" not in kwargs:
         kwargs["extra_body"] = {}
+
+    if "chat_template_kwargs" not in kwargs["extra_body"]:
+        kwargs["extra_body"]["chat_template_kwargs"] = {}
     
     # Set enable_thinking to False for non-streaming calls (required by Qwen API)
-    kwargs["extra_body"]["enable_thinking"] = False
+    # additional_kwargs={"extra_body":{"chat_template_kwargs":{"enable_thinking": False}}},
+    kwargs["extra_body"]["chat_template_kwargs"]["enable_thinking"] = False
+
     
     if "response_format" in kwargs:
         return await client.beta.chat.completions.parse(

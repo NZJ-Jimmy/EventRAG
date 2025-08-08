@@ -157,12 +157,13 @@ async def _find_and_merge_similar_node(
 
     try:
         already_node = await knowledge_graph_inst.get_node(entity_name)
-        if already_node is not None:
+        if already_node is not None:  # 直接找同名节点
             if "merged_to" in already_node:
                 merged_node = await knowledge_graph_inst.get_node(already_node["merged_to"])
                 if merged_node:
                     already_node = merged_node
-                    entity_name = already_node["merged_to"]
+                    # entity_name = already_node
+                    entity_name = already_node["merged_to"]  # 有点奇怪 写错了
                     logger.info(f"Using merged node: {entity_name}")
             
             already_entity_types.append(already_node["entity_type"])
@@ -190,7 +191,8 @@ async def _find_and_merge_similar_node(
                         merged_node = await knowledge_graph_inst.get_node(similar_node["merged_to"])
                         if merged_node:
                             similar_node = merged_node
-                            similar_entity = similar_node["merged_to"]
+                            similar_entity = similar_node["merged_to"] # 有点奇怪 感觉写错了
+                            # similar_entity = similar_node
                             logger.info(f"Using merged similar node: {similar_entity}")
                     
                     already_entity_types.append(similar_node["entity_type"])
@@ -202,7 +204,7 @@ async def _find_and_merge_similar_node(
 
                     await knowledge_graph_inst.upsert_node(
                         entity_name,
-                        node_data={
+                        {  # no specific arg name, magic fixing
                             "merged_to": similar_entity,
                             "source_id": GRAPH_FIELD_SEP.join(
                                 set([dp["source_id"] for dp in nodes_data])
@@ -253,10 +255,10 @@ async def _merge_nodes_then_upsert(
         reverse=True,
     )[0][0]
     
-    description = GRAPH_FIELD_SEP.join(
+    description = GRAPH_FIELD_SEP.join(  # 原节点描述和相似节点描述加在一起;'"美国中东特使对俄罗斯的可能访问，旨在外交沟通。"<SEP>"美国中东问题特使，被特朗普提及可能即将访问俄罗斯。"'
         sorted(set([dp["description"] for dp in nodes_data] + already_description))
     )
-    source_id = GRAPH_FIELD_SEP.join(
+    source_id = GRAPH_FIELD_SEP.join(  # 同上
         set([dp["source_id"] for dp in nodes_data] + already_source_ids)
     )
     description = await _handle_entity_relation_summary(
@@ -410,19 +412,19 @@ async def extract_entities(
 
     ordered_chunks = list(chunks.items())
     # add language and example number params to prompt
-    language = global_config["addon_params"].get(
+    language = global_config["addon_params"].get(  # 语言
         "language", PROMPTS["DEFAULT_LANGUAGE"]
     )
-    entity_types = global_config["addon_params"].get(
+    entity_types = global_config["addon_params"].get(  # 实体类型：事件，角色，动作，结果，工具
         "entity_types", PROMPTS["DEFAULT_ENTITY_TYPES"]
     )
-    example_number = global_config["addon_params"].get("example_number", None)
+    example_number = global_config["addon_params"].get("example_number", None)  # 默认为0
     if example_number and example_number < len(PROMPTS["entity_extraction_examples"]):
         examples = "\n".join(
             PROMPTS["entity_extraction_examples"][: int(example_number)]
         )
     else:
-        examples = "\n".join(PROMPTS["entity_extraction_examples"])
+        examples = "\n".join(PROMPTS["entity_extraction_examples"])  # example改一下，改成中文的
 
     example_context_base = dict(
         tuple_delimiter=PROMPTS["DEFAULT_TUPLE_DELIMITER"],
@@ -440,12 +442,22 @@ async def extract_entities(
         record_delimiter=PROMPTS["DEFAULT_RECORD_DELIMITER"],
         completion_delimiter=PROMPTS["DEFAULT_COMPLETION_DELIMITER"],
         entity_types=",".join(entity_types),
+        # entities="Entities: [PERSON: 'Axel', 'Mark Gaudet Mark Gaudet', 'Eric', 'Trip', 'Purple Knight', 'Gaudet', 'Ed Vaughn', 'Mark Gaudet', 'Moncton', 'Mayhem', 'Darkness', 'Elevator', 'Steinar Sverd Johnsen Steinar Sverd Johnsen', 'Sverd', 'Jan Axel Blomberg', 'Mezzerschmitt Mezzerschmitt', 'Rune Eriksen', 'Lars Sørensen', 'Elevator To Hell', 'Rick White', 'White', 'Ron Bates', 'Dallas Good', 'Erik Blomberg', 'Axel Blomberg', 'Antestor', 'Jan Axel Blomberg Jan Axel', 'Blomberg', 'Steinar Sverd Johnsen', 'Starke', 'Bengtsson', 'Wiktor Ericsson', 'Anders Jansson', 'Magnus Mark', 'Anna Blomberg'; LOCATION: 'Canadian', 'Moncton', 'New Brunswick', 'Elevator', 'Toronto', 'Norwegian', 'Arcturus', 'Mayhem', 'Mortem', 'Swedish', 'Christian', 'Blomberg', 'Swiss', 'Svinarp', 'Sweden', 'Scania'; ORGANIZATION: 'German Air Force', 'Second', 'Funeral Fog', 'Hellhammer', 'Blue Studio', 'Mayhem', 'Blasphemer', 'Red Harvest', 'Orange Glass', 'Sadies', 'Forsaken', 'SVT']",
+        # entities="Entities: [PERSON: '特朗普', '特科夫', '于本周', '梅德韦', 乌克兰'; LOCATION: '美国', '宾夕法尼亚州', '威', '俄罗斯', '俄罗斯联邦'; ORGANIZATION: '联合国']",
         examples=examples,
         language=language,
     )
 
+    expand_base = dict(
+        entity_types=",".join(entity_types),
+        record_delimiter=PROMPTS["DEFAULT_RECORD_DELIMITER"],
+        tuple_delimiter=PROMPTS["DEFAULT_TUPLE_DELIMITER"],
+        completion_delimiter=PROMPTS["DEFAULT_COMPLETION_DELIMITER"],
+    )
     continue_prompt = PROMPTS["entiti_continue_extraction"]
+    continue_prompt = continue_prompt.format(**expand_base)
     expand_prompt = PROMPTS["kg-expansion"]
+    expand_prompt = expand_prompt.format(**expand_base)
     if_loop_prompt = PROMPTS["entiti_if_loop_extraction"]
 
     already_processed = 0
@@ -456,18 +468,18 @@ async def extract_entities(
     async def _process_single_content(chunk_key_dp: tuple[str, TextChunkSchema]):
         nonlocal already_processed, already_entities, already_relations
         chunk_key = chunk_key_dp[0]
-        chunk_dp = chunk_key_dp[1]
+        chunk_dp = chunk_key_dp[1]  # 字典: index, content, token数量
         content = chunk_dp["content"]
         hint_prompt = entity_extract_prompt.format(
             **context_base, input_text="{input_text}"
         ).format(**context_base, input_text=content)
 
-        final_result = await use_llm_func(hint_prompt)
-        history = pack_user_ass_to_openai_messages(hint_prompt, final_result)
+        final_result = await use_llm_func(hint_prompt)  # 访问LLM进行实体提取
+        history = pack_user_ass_to_openai_messages(hint_prompt, final_result)  # 加上之前历史，一段user，一段assistant
         
         # Initial gleaning loop
-        for now_glean_index in range(entity_extract_max_gleaning):
-            glean_result = await use_llm_func(continue_prompt, history_messages=history)
+        for now_glean_index in range(entity_extract_max_gleaning):  # entity_extract_max_gleaning表示
+            glean_result = await use_llm_func(continue_prompt, history_messages=history)  # 输出result被截断
 
             history += pack_user_ass_to_openai_messages(continue_prompt, glean_result)
             final_result += glean_result
@@ -493,7 +505,7 @@ async def extract_entities(
 
         maybe_nodes = defaultdict(list)
         maybe_edges = defaultdict(list)
-        for record in records:
+        for record in records:  # 一个record带有很多实体关系记录
             record = re.search(r"\((.*)\)", record)
             if record is None:
                 continue
@@ -516,7 +528,7 @@ async def extract_entities(
                     if_relation
                 )
         already_processed += 1
-        already_entities += len(maybe_nodes)
+        already_entities += len(maybe_nodes)  # 还是偏少，输出不稳定
         already_relations += len(maybe_edges)
         now_ticks = PROMPTS["process_tickers"][
             already_processed % len(PROMPTS["process_tickers"])
@@ -529,10 +541,10 @@ async def extract_entities(
         async with extraction_semaphore:
             return await _process_single_content(chunk_key_dp)
 
-    if os.path.exists("results.pkl"):
+    if os.path.exists("./tmp/results.pkl"):  # why
         results = joblib.load("results.pkl")
         logger.info("Extraction results loaded from results.pkl")
-    else:
+    else:  # 提取实体步骤
         results = []
         for result in tqdm_async(
             asyncio.as_completed([_process_single_content_with_semaphore(c) for c in ordered_chunks]),
@@ -676,18 +688,18 @@ async def kg_query(
     # LLM generate keywords
     kw_prompt_temp = PROMPTS["keywords_extraction"]
     kw_prompt = kw_prompt_temp.format(query=query, examples=examples, language=language)
-    result = await use_model_func(kw_prompt, keyword_extraction=True)
+    result = await use_model_func(kw_prompt, keyword_extraction=True)  # 提取出high_level_keywords和low_level_keywords
     logger.info("kw_prompt result:")
     logger.info(result)
     try:
         # json_text = locate_json_string_body_from_string(result) # handled in use_model_func
         match = re.search(r"\{.*\}", result, re.DOTALL)
-        if match:
+        if match:  # 这里没生成好很容易出错
             result = match.group(0)
             keywords_data = json.loads(result)
 
-            hl_keywords = keywords_data.get("high_level_keywords", [])
-            ll_keywords = keywords_data.get("low_level_keywords", [])
+            hl_keywords = keywords_data.get("high_level_keywords", [])  # 比如提取出来是: ['人际关系', '人物关系', '社会联系']
+            ll_keywords = keywords_data.get("low_level_keywords", [])  # 比如提取出来的low level是: ['李欣', '张洁', '朋友', '家人', '同事']
         else:
             logger.error("No JSON-like structure found in the result.")
             return PROMPTS["fail_response"]
@@ -713,7 +725,7 @@ async def kg_query(
         hl_keywords = ", ".join(hl_keywords)
 
     # Build context
-    keywords = [ll_keywords, hl_keywords]
+    keywords = [ll_keywords, hl_keywords]  # 获取到keywords, example: ['李欣, 张洁, 朋友, 家人, 同事', '人际关系, 人物关系, 社会联系']
     context = await _build_query_context(
         keywords,
         knowledge_graph_inst,
@@ -776,6 +788,7 @@ async def _build_query_context(
     # ll_entities_context, ll_relations_context, ll_text_units_context = "", "", ""
     # hl_entities_context, hl_relations_context, hl_text_units_context = "", "", ""
 
+    query = eval(query)
     ll_kewwords, hl_keywrds = query[0], query[1]
     if query_param.mode in ["local", "hybrid", "agent"]:
         if ll_kewwords == "":
@@ -872,7 +885,7 @@ async def _get_node_data(
     query_param: QueryParam,
     return_node_only=False,
 ):
-    # get similar entities
+    # get similar entities  很容易获取不到
     results = await entities_vdb.query(query, top_k=query_param.top_k)
     if not len(results):
         return "", "", ""

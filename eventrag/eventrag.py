@@ -73,6 +73,7 @@ def lazy_external_import(module_name: str, class_name: str):
 
 
 Neo4JStorage = lazy_external_import(".kg.neo4j_impl", "Neo4JStorage")
+NebulaGraphStorage = lazy_external_import('.kg.nebula_impl', 'NebulaGraphStorage')
 OracleKVStorage = lazy_external_import(".kg.oracle_impl", "OracleKVStorage")
 OracleGraphStorage = lazy_external_import(".kg.oracle_impl", "OracleGraphStorage")
 OracleVectorDBStorage = lazy_external_import(".kg.oracle_impl", "OracleVectorDBStorage")
@@ -113,11 +114,11 @@ class EventRAG:
     working_dir: str = field(
         default_factory=lambda: f"./eventrag_cache_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}"
     )
-    # Default not to use embedding cache
+    # Default not to use embedding cache， fuse时候的参数
     embedding_cache_config: dict = field(
         default_factory=lambda: {
             "enabled": False,
-            "similarity_threshold": 0.95,
+            "similarity_threshold": 0.95,  # merge时的相似度阈值
             "use_llm_check": False,
         }
     )
@@ -134,7 +135,7 @@ class EventRAG:
     tiktoken_model_name: str = "gpt-4o-mini"
 
     # entity extraction
-    entity_extract_max_gleaning: int = 1
+    entity_extract_max_gleaning: int = 1  # 增加尝试次数
     entity_summary_to_max_tokens: int = 500
 
     # node embedding
@@ -172,7 +173,7 @@ class EventRAG:
     convert_response_to_json_func: callable = convert_response_to_json
 
     # Entity similarity threshold for merging
-    entity_similarity_threshold: float = 0.8
+    entity_similarity_threshold: float = 0.8  # 实体合并阈值
 
     def __post_init__(self):
         log_file = os.path.join("eventrag.log")
@@ -276,6 +277,7 @@ class EventRAG:
             # graph storage
             "NetworkXStorage": NetworkXStorage,
             "Neo4JStorage": Neo4JStorage,
+            "NebulaGraphStorage": NebulaGraphStorage,
             "OracleGraphStorage": OracleGraphStorage,
             # "ArangoDBStorage": ArangoDBStorage
         }
@@ -287,29 +289,35 @@ class EventRAG:
     async def ainsert(self, string_or_strings):
         update_storage = False
         try:
-            if isinstance(string_or_strings, str):
+            if isinstance(string_or_strings, str):  # 转换为列表，方便批处理，说明传入可以是list的string
                 string_or_strings = [string_or_strings]
 
+            # 生成文档ID和内容字典
+            #     - 使用MD5哈希生成唯一文档ID（前缀为"doc-"）
+            #     - 内容去除首尾空格
             new_docs = {
                 compute_mdhash_id(c.strip(), prefix="doc-"): {"content": c.strip()}
                 for c in string_or_strings
             }
+            # 过滤已存在的文档（cache中的）（避免重复插入）
             _add_doc_keys = await self.full_docs.filter_keys(list(new_docs.keys()))
             new_docs = {k: v for k, v in new_docs.items() if k in _add_doc_keys}
             if not len(new_docs):
                 logger.warning("All docs are already in the storage")
-                return
+                return  # 存在直接返回即可
             update_storage = True
             logger.info(f"[New Docs] inserting {len(new_docs)} docs")
 
+            # 文档分块处理
             inserting_chunks = {}
             for doc_key, doc in tqdm_async(
                 new_docs.items(), desc="Chunking documents", unit="doc"
             ):
+                # 4.1 按token大小分块 * （考虑重叠和最大长度）
                 chunks = {
                     compute_mdhash_id(dp["content"], prefix="chunk-"): {
                         **dp,
-                        "full_doc_id": doc_key,
+                        "full_doc_id": doc_key,  # chunk和原始文档关联
                     }
                     for dp in chunking_by_token_size(
                         doc["content"],
@@ -319,6 +327,7 @@ class EventRAG:
                     )
                 }
                 inserting_chunks.update(chunks)
+            # 5. 过滤已存在的分块
             _add_chunk_keys = await self.text_chunks.filter_keys(
                 list(inserting_chunks.keys())
             )
@@ -330,8 +339,10 @@ class EventRAG:
                 return
             logger.info(f"[New Chunks] inserting {len(inserting_chunks)} chunks")
 
+            # 6. 将分块插入向量数据库
             await self.chunks_vdb.upsert(inserting_chunks)
 
+            # 7. 实体和关系提取（important）
             logger.info("[Entity Extraction]...")
             maybe_new_kg = await extract_entities(
                 inserting_chunks,
@@ -583,3 +594,10 @@ class EventRAG:
                 continue
             tasks.append(cast(StorageNameSpace, storage_inst).index_done_callback())
         await asyncio.gather(*tasks)
+
+    def print_rank(self):
+        loop = always_get_an_event_loop()
+        return loop.run_until_complete(self.print_top_100_nodes_by_rank())
+
+    async def print_top_100_nodes_by_rank(self):
+        return await self.chunk_entity_relation_graph.print_nodes_by_rank(1, 100)

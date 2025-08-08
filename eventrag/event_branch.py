@@ -28,7 +28,7 @@ def create_event_summarizer(llm):
     Original question: {question}
     Event information: {event_info}
 
-    Provide a concise summary focusing on the temporal and causal relationships between events.
+    Provide a concise summary focusing on the temporal and causal relationships between events. Keep the same language as `Original question`.
     """
 
     @create_retry_decorator()
@@ -57,6 +57,8 @@ def create_event_aggregator(llm):
     1. Temporal relationships between events
     2. Cause-and-effect relationships
     3. Key actors and their roles in the events
+    
+    Keep the same language as `Original question`.
     """
 
     @create_retry_decorator()

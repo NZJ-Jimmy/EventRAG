@@ -128,3 +128,6 @@ class BaseGraphStorage(StorageNameSpace):
 
     async def embed_nodes(self, algorithm: str) -> tuple[np.ndarray, list[str]]:
         raise NotImplementedError("Node embedding is not used in eventrag.")
+
+    async def print_nodes_by_rank(self, min_rank: int, max_rank: int):
+        raise NotImplementedError("Node embedding is not used in eventrag.")

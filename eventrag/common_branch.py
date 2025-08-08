@@ -48,8 +48,8 @@ def execute_queries_wrapper(tool_executor):
         logger.info(f"Current state: {state}")
         # plan = state["query_results"]["plan"]
         results = []
-
-        keywords_to_query = state["next_keywords"] if state["next_keywords"] else state["query_results"]["keywords"].split(" ,")
+        keywords_to_query = state["query_results"]["keywords"].split("||")  #修正
+        # keywords_to_query = state["next_keywords"] if state["next_keywords"] else state["query_results"]["keywords"].split(" ,")
         
         # for tool_name, query in zip(plan["tools"], plan["queries"]):
         #     tool_invocation = ToolInvocation(
@@ -61,7 +61,7 @@ def execute_queries_wrapper(tool_executor):
 
         keywords_query_invocation = ToolInvocation(
             tool="keywords_query",
-            tool_input=str(keywords_to_query)
+            tool_input=str(keywords_to_query)  # 从str(keywords_to_query)修正到list
         )
         keywords_query = await tool_executor.ainvoke(keywords_query_invocation)
         results.append(keywords_query)
@@ -89,7 +89,7 @@ def create_result_analyzer(llm):
     Original question:
     {question}
 
-    Please summarize all findings and perform comprehensive reasoning analysis. Consider both previous and new information.
+    Please summarize all findings and perform comprehensive reasoning analysis. Consider both previous and new information. Keep the same language as `Original question`.
     """
     
     @create_retry_decorator()
@@ -98,6 +98,7 @@ def create_result_analyzer(llm):
         question = state["messages"][-1].content
         # get previous analysis (if any)
         previous_analysis = state["query_results"].get("analysis", "")
+
         
         response = await llm.ainvoke(template.format(
             previous_analysis=previous_analysis,

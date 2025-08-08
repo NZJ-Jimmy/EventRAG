@@ -1,7 +1,8 @@
 from langgraph.graph import Graph, StateGraph, START, END
 from langgraph.prebuilt.tool_executor import ToolExecutor
 from langchain_core.messages import AIMessage, HumanMessage
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
+from .no_think_chat_model import QwenNoThinkModel
 from eventrag.tools import KnowledgeGraphTool, KnowledgeGraphEdgeTool, KeywordsQueryTool, EventGraphTool
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolInvocation
@@ -102,7 +103,7 @@ def create_final_answer_generator(llm):
     - Highlights temporal and causal relationships where relevant
     - Maintains logical flow and coherence
     
-    Add sections and commentary to the response as appropriate for the length and format. Style the response in markdown.
+    Add sections and commentary to the response as appropriate for the length and format. Style the response in markdown. Keep the same language as `Original question`.
     """
     @create_retry_decorator()
     async def generate_final_answer(state: MainAgentState) -> MainAgentState:
@@ -133,12 +134,19 @@ def create_graph(
     #     model=global_config.get("model_name", "gpt-4o"),
     #     temperature=global_config.get("temperature", 0.1)
     # )
-    llm = ChatOpenAI(
+    # llm = ChatOpenAI(
+    #     model="Qwen3-32B",  # 模型名称与你测试成功的名称一致
+    #     openai_api_base="http://10.10.202.242:2099/v1",
+    #     openai_api_key="EMPTY",  # 使用环境变量
+    #     temperature=0.2,
+    #     max_tokens=2048
+    # )
+    llm = QwenNoThinkModel(
         model="Qwen3-32B",  # 模型名称与你测试成功的名称一致
         openai_api_base="http://10.10.202.242:2099/v1",
         openai_api_key="EMPTY",  # 使用环境变量
-        temperature=0.2,
-        max_tokens=2048
+        temperature=0.05,
+        max_tokens=16384,
     )
 
     tool_executor = create_tool_executor(
@@ -269,8 +277,8 @@ async def run_graph(
         needs_more_info=True,
         next_keywords=[]
     )
-    print("Graph nodes:", graph.nodes)  # 检查节点是否完整
-    print("Graph edges:", graph.get_graph().edges)  # 检查边是否正确连接
+    # print("Graph nodes:", graph.nodes)  # 检查节点是否完整
+    # print("Graph edges:", graph.get_graph().edges)  # 检查边是否正确连接
 
     # 临时测试 LLM 是否响应
     # print(graph.llm)

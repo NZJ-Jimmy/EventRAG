@@ -1,8 +1,8 @@
 GRAPH_FIELD_SEP = "<SEP>"
 
 PROMPTS = {}
-PROMPTS["DEFAULT_LANGUAGE"] = "English"
-PROMPTS["DEFAULT_TUPLE_DELIMITER"] = "<|>"
+PROMPTS["DEFAULT_LANGUAGE"] = "Chinese"  # 从English改为Chinese
+PROMPTS["DEFAULT_TUPLE_DELIMITER"] = "<|>"  # 之前是<|>
 PROMPTS["DEFAULT_RECORD_DELIMITER"] = "##"
 PROMPTS["DEFAULT_COMPLETION_DELIMITER"] = "<|COMPLETE|>"
 PROMPTS["process_tickers"] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -17,7 +17,7 @@ Use {language} as output language.
 1. Identify all entities. For each identified entity, extract the following information:
    - entity_name: Use the same language as the input text (if English, capitalize the name).
    - entity_type: One of the following types: [{entity_types}]
-   - entity_description: A comprehensive description of the entity's role, attributes, and context.
+   - entity_description: A comprehensive description of the entity's role, attributes, and context. Also, identify and link all possible aliases or alternative names for each person or entity, even if they are implicit in the text.
    Format each entity as ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
    
 2. Extract all events or actions in the text. For each event or action, extract the following information:
@@ -43,6 +43,9 @@ Use {language} as output language.
 
 6. When finished, output {completion_delimiter}
 
+Example:
+{examples}
+
 
 #############################
 -Real Data-
@@ -60,31 +63,22 @@ Entity_types: [Event, Actor, Action, Result, Tool]
 Text: At the World Championship Finals, the highly anticipated "Elite Tennis Showdown" took place between top-ranked players on Center Court. Roger Hamilton, the defending champion, displayed exceptional skill throughout the five-set match, utilizing his signature racquet "PowerPro X1" for powerful serves and precise shots. His opponent, Maria Chen, executed her strategic gameplay with outstanding athleticism and court coverage. The intense competition culminated in a historic victory for Hamilton, marking his fifth consecutive championship title with a record-breaking serve speed. #############
 
 Output: ("entity"{tuple_delimiter}"Elite Tennis Showdown"{tuple_delimiter}"Event"{tuple_delimiter}"Elite Tennis Showdown is the championship finals match featuring top tennis players competing for the world title."){record_delimiter}
-
 ("entity"{tuple_delimiter}"Roger Hamilton"{tuple_delimiter}"Actor"{tuple_delimiter}"Roger Hamilton is the defending champion known for his powerful playing style and tactical expertise."){record_delimiter}
-
 ("entity"{tuple_delimiter}"PowerPro X1"{tuple_delimiter}"Tool"{tuple_delimiter}"PowerPro X1 is Hamilton's professional tennis racquet designed for maximum power and control."){record_delimiter}
-
 ("entity"{tuple_delimiter}"Maria Chen"{tuple_delimiter}"Actor"{tuple_delimiter}"Maria Chen is a skilled competitor known for her strategic gameplay and court coverage."){record_delimiter}
-
 ("entity"{tuple_delimiter}"Championship Victory"{tuple_delimiter}"Result"{tuple_delimiter}"Hamilton's historic fifth consecutive title win featuring a record-breaking serve speed."){record_delimiter}
-
 ("relationship"{tuple_delimiter}"Roger Hamilton"{tuple_delimiter}"Elite Tennis Showdown"{tuple_delimiter}"Participates In"{tuple_delimiter}"Hamilton competes as the defending champion in the prestigious finals match."{tuple_delimiter}"championship defense, competitive performance"{tuple_delimiter}9){record_delimiter}
-
 ("relationship"{tuple_delimiter}"Roger Hamilton"{tuple_delimiter}"PowerPro X1"{tuple_delimiter}"Uses Equipment"{tuple_delimiter}"Hamilton utilizes the PowerPro X1 to execute powerful serves and precise shots."{tuple_delimiter}"equipment mastery, performance enhancement"{tuple_delimiter}8){record_delimiter}
-
 ("relationship"{tuple_delimiter}"Maria Chen"{tuple_delimiter}"Elite Tennis Showdown"{tuple_delimiter}"Chen demonstrates exceptional skill and strategy throughout the championship match."{tuple_delimiter}"competitive challenge, athletic performance"{tuple_delimiter}7){record_delimiter}
-
 ("relationship"{tuple_delimiter}"Maria Chen"{tuple_delimiter}"Championship Victory"{tuple_delimiter}"Chen's strong performance contributes to the historic nature of the final match."{tuple_delimiter}"competitive contribution, match intensity"{tuple_delimiter}8){record_delimiter}
-
 ("relationship"{tuple_delimiter}"PowerPro X1"{tuple_delimiter}"Championship Victory"{tuple_delimiter}"The racquet enables Hamilton's record-breaking serves in securing the championship."{tuple_delimiter}"equipment performance, victory achievement"{tuple_delimiter}9){record_delimiter}
-
 ("content_keywords"{tuple_delimiter}"tennis championship, professional athletics, competitive performance, sports equipment, record achievement"){completion_delimiter}
 #############################""",
     """Example 2:
 
 Entity_types: [Event, Actor, Action, Result, Tool]  
 Text: In a virology laboratory, researchers performed a "Virus Grid Preparation" experiment to visualize viral particles using transmission electron microscopy. The viral lysate, containing concentrated bacteriophages, was prepared for imaging. Using the Pelco-glow discharge system, technicians treated the copper grid to make it hydrophilic. Then, using a high-precision micropipette, they deposited 5 microliters of sample onto the grid. After a three-minute adsorption period monitored with a digital timer, they applied uranyl acetate stain using fine-tipped forceps. The JEOL transmission electron microscope revealed detailed viral structures in the final imaging step. #############
+
 Output: ("entity"{tuple_delimiter}"Virus Grid Preparation"{tuple_delimiter}"Event"{tuple_delimiter}"A laboratory procedure for preparing viral samples for TEM visualization."){record_delimiter}
 ("entity"{tuple_delimiter}"Viral Lysate"{tuple_delimiter}"Actor"{tuple_delimiter}"The concentrated viral sample used for grid preparation."){record_delimiter}
 ("entity"{tuple_delimiter}"Pelco-glow Discharge System"{tuple_delimiter}"Tool"{tuple_delimiter}"Equipment used to create hydrophilic surface on grids through plasma treatment."){record_delimiter}
@@ -105,10 +99,8 @@ Output: ("entity"{tuple_delimiter}"Virus Grid Preparation"{tuple_delimiter}"Even
     """Example 3:
 
 Entity_types: [Event, Actor, Action, Result, Tool]  
-Text:  
-In the Spring Kick-Off Conference, the organizers announced a new event named "Green City," encouraging all residents to participate. Alice, as the main organizer, was responsible for coordinating a series of publicity and mobilization campaigns. She used a tool named "EcoTracker" to track and analyze various environmental achievements, such as water savings and waste sorting rates. Bob led a volunteer campaign, going door-to-door to help more residents understand the project's goals. As a result, the city's water savings significantly increased, which was highly recognized by the municipal authorities.
+Text: In the Spring Kick-Off Conference, the organizers announced a new event named "Green City," encouraging all residents to participate. Alice, as the main organizer, was responsible for coordinating a series of publicity and mobilization campaigns. She used a tool named "EcoTracker" to track and analyze various environmental achievements, such as water savings and waste sorting rates. Bob led a volunteer campaign, going door-to-door to help more residents understand the project's goals. As a result, the city's water savings significantly increased, which was highly recognized by the municipal authorities. #############
 
-#############
 Output:
 ("entity"{tuple_delimiter}"Green City"{tuple_delimiter}"Event"{tuple_delimiter}"Green City is an event designed to encourage residents to actively engage in environmental protection, focusing on saving resources and reducing emissions."){record_delimiter}
 ("entity"{tuple_delimiter}"Alice"{tuple_delimiter}"Actor"{tuple_delimiter}"Alice is the main organizer, responsible for coordinating publicity and mobilization efforts for the event."){record_delimiter}
@@ -145,6 +137,26 @@ PROMPTS[
     "entiti_continue_extraction"
 ] = """ 
 MANY events, actions, relationships were missed in the last extraction. Each entity or event or action should have at least one relationship. Make sure that there are no missing relationships and isolated nodes. Add them below using the same format:
+-Output Format Requirements-
+1. Format each expanded entity as:
+   ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
+
+2. Format each relationship as:
+   ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_name>{tuple_delimiter}<relationship_description>|<relationship_keywords>|<relationship_strength>)
+
+3. Format content keywords as:
+   ("content_keywords"{tuple_delimiter}<expanded_high_level_keywords>)
+
+4. Return all expanded entities and relationships on a separate line, separated by {record_delimiter}
+
+Entity Types: {entity_types}
+
+Example Output:
+("entity"{tuple_delimiter}"Green City"{tuple_delimiter}"Event"{tuple_delimiter}"Green City is an event designed to encourage residents to actively engage in environmental protection, focusing on saving resources and reducing emissions."){record_delimiter}
+("relationship"{tuple_delimiter}"Sample Deposition"{tuple_delimiter}"Viral Structure Visualization"{tuple_delimiter}"Proper deposition ensures quality of final microscope imaging."{tuple_delimiter}"sample preparation, imaging quality"{tuple_delimiter}8){record_delimiter}
+("content_keywords"{tuple_delimiter}"virus preparation, TEM imaging, laboratory equipment, sample handling, microscopy techniques"){completion_delimiter}
+#############################
+Output:
 """
 
 PROMPTS[
@@ -322,17 +334,22 @@ Given the above extracted entities, events, and relationships from a text, expan
 
 -Output Format Requirements-
 1. Format each expanded entity as:
-   ("entity"|<entity_name>|<entity_type>|<entity_description>)
+   ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
 
 2. Format each relationship as:
-   ("relationship"|<source_entity>|<target_entity>|<relationship_name>|<relationship_description>|<relationship_keywords>|<relationship_strength>)
+   ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_name>{tuple_delimiter}<relationship_description>|<relationship_keywords>|<relationship_strength>)
 
 3. Format content keywords as:
-   ("content_keywords"|<expanded_high_level_keywords>)
+   ("content_keywords"{tuple_delimiter}<expanded_high_level_keywords>)
 
-4. Return all expanded entities and relationships separated by {record_delimiter}
+4. Return all expanded entities and relationships on a separate line, separated by {record_delimiter}
 
 Entity Types: {entity_types}
+
+Example Output:
+("entity"{tuple_delimiter}"Green City"{tuple_delimiter}"Event"{tuple_delimiter}"Green City is an event designed to encourage residents to actively engage in environmental protection, focusing on saving resources and reducing emissions."){record_delimiter}
+("relationship"{tuple_delimiter}"Sample Deposition"{tuple_delimiter}"Viral Structure Visualization"{tuple_delimiter}"Proper deposition ensures quality of final microscope imaging."{tuple_delimiter}"sample preparation, imaging quality"{tuple_delimiter}8){record_delimiter}
+("content_keywords"{tuple_delimiter}"virus preparation, TEM imaging, laboratory equipment, sample handling, microscopy techniques"){completion_delimiter}
 #############################
 Output:
 """

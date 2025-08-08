@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Union, cast
 import networkx as nx
 import numpy as np
+import json
 from nano_vectordb import NanoVectorDB
 
 from .utils import (
@@ -65,7 +66,7 @@ class JsonKVStorage(BaseKVStorage):
 
 @dataclass
 class NanoVectorDBStorage(BaseVectorStorage):
-    cosine_better_than_threshold: float = 0.8
+    cosine_better_than_threshold: float = 0.5  # 需要降低threshold，与其他database保持一致
 
     def __post_init__(self):
         self._client_file_name = os.path.join(
@@ -123,7 +124,7 @@ class NanoVectorDBStorage(BaseVectorStorage):
     async def query(self, query: str, top_k=5):
         embedding = await self.embedding_func([query])
         embedding = embedding[0]
-        results = self._client.query(
+        results = self._client.query(  # 发现Working directory下的NanoVectorDB json为空
             query=embedding,
             top_k=top_k,
             better_than_threshold=self.cosine_better_than_threshold,
@@ -302,13 +303,37 @@ class NetworkXStorage(BaseGraphStorage):
             return list(self._graph.edges(source_node_id))
         return None
 
-    async def upsert_node(self, event_id: str, event_data: dict[str, str]):
-        self._graph.add_node(event_id, **event_data)
+    # async def upsert_node(self, event_id: str, event_data: dict[str, str]):
+    #     self._graph.add_node(event_id, **event_data)
+    #
+    # async def upsert_edge(
+    #     self, source_event_id: str, target_event_id: str, edge_data: dict[str, str]
+    # ):
+    #     self._graph.add_edge(source_event_id, target_event_id, **edge_data)
+
+    async def upsert_node(self, event_id: str, event_data: dict[str, Any]):
+        # 将所有字典类型的属性值转换为JSON字符串
+        compatible_data = {}
+        for key, value in event_data.items():
+            if isinstance(value, dict):
+                compatible_data[key] = json.dumps(value)
+            else:
+                compatible_data[key] = value
+
+        self._graph.add_node(event_id, **compatible_data)
 
     async def upsert_edge(
-        self, source_event_id: str, target_event_id: str, edge_data: dict[str, str]
+            self, source_event_id: str, target_event_id: str, edge_data: dict[str, Any]
     ):
-        self._graph.add_edge(source_event_id, target_event_id, **edge_data)
+        # 将所有字典类型的属性值转换为JSON字符串
+        compatible_data = {}
+        for key, value in edge_data.items():
+            if isinstance(value, dict):
+                compatible_data[key] = json.dumps(value)
+            else:
+                compatible_data[key] = value
+
+        self._graph.add_edge(source_event_id, target_event_id, **compatible_data)
 
     async def delete_node(self, node_id: str):
         """
@@ -354,4 +379,14 @@ class NetworkXStorage(BaseGraphStorage):
         """
         return await entities_vdb.find_similar_entity(entity_name, entity_description, similarity_threshold)
 
-
+    # 新加入打印节点rank的函数
+    async def print_nodes_by_rank(self, min_rank=1, max_rank=100):
+        nodes = [
+            (node, data, self._graph.degree(node))
+            for node, data in self._graph.nodes(data=True)
+        ]
+        nodes = sorted(nodes, key=lambda x: x[2])
+        response = ""
+        for node, data, degree in nodes[:-20:-1]:
+            response += f"Node: {node}, Rank: {degree}, Data: {data}\n"
+        return response
