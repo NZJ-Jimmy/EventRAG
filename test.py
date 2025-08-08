@@ -67,8 +67,11 @@ def read_file_content(file_path):
     # 图像和PDF处理（使用PaddleOCR）
     elif file_extension in ['.jpg', '.png', '.jpeg', '.bmp', '.pdf']:
         result = ocr.predict(file_path)
+        text = ""
+        for res in result:
+            text += "\n".join(res['rec_texts']) + "\n"
         # 提取OCR识别的文本
-        return "\n".join(result[0]['rec_texts'])
+        return text
 
     else:
         raise ValueError(f"不支持的文件类型: {file_extension}")
